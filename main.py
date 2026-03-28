@@ -3,17 +3,30 @@ import json
 import time
 import schedule
 import requests
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 from twilio.rest import Client
 
-# ── Config (set these as environment variables in Render) ──────────────────
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"CyberHunt running")
+    def log_message(self, *args):
+        pass
+
+def start_server():
+    HTTPServer(("0.0.0.0", 10000), Handler).serve_forever()
+
+threading.Thread(target=start_server, daemon=True).start()
+
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN  = os.environ["TWILIO_AUTH_TOKEN"]
-TWILIO_FROM        = os.environ["TWILIO_FROM"]   # e.g. whatsapp:+14155238886
-TWILIO_TO          = os.environ["TWILIO_TO"]     # e.g. whatsapp:+919876543210
+TWILIO_FROM        = os.environ["TWILIO_FROM"]
+TWILIO_TO          = os.environ["TWILIO_TO"]
 ANTHROPIC_API_KEY  = os.environ["ANTHROPIC_API_KEY"]
 
-# ── Job search keywords (customize freely) ─────────────────────────────────
 SEARCH_KEYWORDS = [
     "entry level cybersecurity internship India",
     "SOC analyst fresher India",
@@ -36,11 +49,10 @@ Return 3-5 best matches only. If none found in last 7 days, return empty array [
 """
 
 def search_jobs():
-    """Call Claude with web search to find fresh cybersecurity jobs."""
     print(f"[{datetime.now()}] Searching for jobs...")
     all_jobs = []
 
-    for keyword in SEARCH_KEYWORDS[:2]:  # limit to 2 searches per run
+    for keyword in SEARCH_KEYWORDS[:2]:
         try:
             resp = requests.post(
                 "https://api.anthropic.com/v1/messages",
@@ -68,11 +80,10 @@ def search_jobs():
             if start != -1:
                 jobs = json.loads(text[start:end+1])
                 all_jobs.extend(jobs)
-            time.sleep(3)  # be polite between requests
+            time.sleep(3)
         except Exception as e:
             print(f"Search error for '{keyword}': {e}")
 
-    # Deduplicate by title+company
     seen = set()
     unique = []
     for j in all_jobs:
@@ -81,13 +92,12 @@ def search_jobs():
             seen.add(key)
             unique.append(j)
 
-    return unique[:5]  # max 5 per alert
+    return unique[:5]
 
 
 def format_whatsapp_message(jobs):
-    """Format jobs into a clean WhatsApp message."""
     if not jobs:
-        return None  # don't send if nothing found
+        return None
 
     lines = [
         "*CyberHunt Daily Alert*",
@@ -106,7 +116,6 @@ def format_whatsapp_message(jobs):
 
 
 def send_whatsapp(message):
-    """Send message via Twilio WhatsApp."""
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     msg = client.messages.create(
         from_=TWILIO_FROM,
@@ -117,7 +126,6 @@ def send_whatsapp(message):
 
 
 def run_daily_alert():
-    """Main job: search + send."""
     print(f"[{datetime.now()}] Running daily alert...")
     jobs = search_jobs()
     if not jobs:
@@ -129,12 +137,11 @@ def run_daily_alert():
         print(f"[{datetime.now()}] Alert sent with {len(jobs)} jobs.")
 
 
-# ── Schedule: run once a day at 9:00 AM IST (3:30 AM UTC) ─────────────────
 schedule.every().day.at("03:30").do(run_daily_alert)
 
 if __name__ == "__main__":
     print("CyberHunt Agent started. Waiting for scheduled run...")
-    run_daily_alert()  # run once immediately on startup
+    run_daily_alert()
     while True:
         schedule.run_pending()
         time.sleep(60)
