@@ -21,7 +21,7 @@ SEARCH_KEYWORDS = [
 ]
 
 SYSTEM_PROMPT = """You are CyberHunt, a strict job search agent.
-Search the web for REAL, CURRENT (last 7 days) entry-level cybersecurity jobs
+Search the web for REAL, CURRENT (last 30 days) entry-level cybersecurity jobs
 and internships in India. Return ONLY a JSON array, no markdown, no preamble.
 Each object must have:
 - title: job title
@@ -30,8 +30,9 @@ Each object must have:
 - type: Internship | Full-time
 - link: direct application URL
 - posted: when posted (e.g. "2 days ago")
-Return 3-5 best matches only. If none found in last 7 days, return empty array [].
+Return 3-5 best matches only. If none found in last 30 days, return empty array [].
 """
+
 
 def search_jobs():
     print(f"[{datetime.now()}] Searching for jobs...")
