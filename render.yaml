@@ -1,0 +1,18 @@
+services:
+  - type: worker
+    name: cyberhunt-agent
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    plan: free
+    envVars:
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
+      - key: TWILIO_TO
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
