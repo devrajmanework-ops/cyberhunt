@@ -8,19 +8,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 from twilio.rest import Client
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"CyberHunt running")
-    def log_message(self, *args):
-        pass
-
-def start_server():
-    HTTPServer(("0.0.0.0", 10000), Handler).serve_forever()
-
-threading.Thread(target=start_server, daemon=True).start()
-
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN  = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_FROM        = os.environ["TWILIO_FROM"]
@@ -31,8 +18,6 @@ SEARCH_KEYWORDS = [
     "entry level cybersecurity internship India",
     "SOC analyst fresher India",
     "ethical hacking internship India",
-    "cybersecurity graduate trainee India",
-    "network security internship India",
 ]
 
 SYSTEM_PROMPT = """You are CyberHunt, a strict job search agent.
@@ -51,7 +36,6 @@ Return 3-5 best matches only. If none found in last 7 days, return empty array [
 def search_jobs():
     print(f"[{datetime.now()}] Searching for jobs...")
     all_jobs = []
-
     for keyword in SEARCH_KEYWORDS[:2]:
         try:
             resp = requests.post(
@@ -91,26 +75,22 @@ def search_jobs():
         if key not in seen:
             seen.add(key)
             unique.append(j)
-
     return unique[:5]
 
 
 def format_whatsapp_message(jobs):
     if not jobs:
         return None
-
     lines = [
         "*CyberHunt Daily Alert*",
         f"_{datetime.now().strftime('%d %b %Y')}_ | {len(jobs)} new openings\n"
     ]
-
     for i, j in enumerate(jobs, 1):
         lines.append(f"*{i}. {j.get('title', 'N/A')}*")
         lines.append(f"   {j.get('company', '?')} — {j.get('location', '?')}")
         lines.append(f"   Type: {j.get('type', '?')} | Posted: {j.get('posted', 'Recent')}")
         lines.append(f"   Apply: {j.get('link', 'Search on LinkedIn')}")
         lines.append("")
-
     lines.append("_Reply STOP to unsubscribe_")
     return "\n".join(lines)
 
@@ -137,11 +117,24 @@ def run_daily_alert():
         print(f"[{datetime.now()}] Alert sent with {len(jobs)} jobs.")
 
 
-schedule.every().day.at("03:30").do(run_daily_alert)
-
-if __name__ == "__main__":
-    print("CyberHunt Agent started. Waiting for scheduled run...")
+def run_scheduler():
+    schedule.every().day.at("03:30").do(run_daily_alert)
     run_daily_alert()
     while True:
         schedule.run_pending()
         time.sleep(60)
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"CyberHunt running")
+    def log_message(self, *args):
+        pass
+
+
+if __name__ == "__main__":
+    print("CyberHunt Agent started.")
+    threading.Thread(target=run_scheduler, daemon=True).start()
+    HTTPServer(("0.0.0.0", 10000), Handler).serve_forever()
